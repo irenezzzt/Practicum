@@ -1,0 +1,489 @@
+---
+title: "practicum winter"
+author: "Ting Zhang"
+date: "January 6, 2017"
+output: pdf_document
+---
+\section{A.Data Preparation}
+\paragraph{1.Read in Data}
+```{r, cache=TRUE, echo=FALSE}
+setwd("/Users/zhangting/Desktop/GRADUATE/PRACTICUM/data_Oct7")
+
+library(splines)
+
+COPD <- read.csv("emergency hospital admission/COPD_M.csv")
+COPD$count_f <-read.csv("emergency hospital admission/COPD_F.csv")[,2]
+COPD$total <-rowSums(COPD[,2:3])
+COPD$DOW <- c(rep(c(6,7,1,2,3,4,5),574))[1:4017]
+
+meter <-read.csv("mete.csv", header = TRUE)[2810:3958,]
+flu <- read.csv("influenza.csv")
+#Subset from 2012-09-10 to 2015-11-02
+COPD <- COPD[2810:3958,]
+
+air <- read.csv("air pollutant data_community.csv")[2810:3958,]
+O3 <-read.csv("O3.csv")[2810:3958,2]
+
+
+```
+
+\paragraph{2.Create Holiday Variable}
+```{r, cache=TRUE, echo=FALSE}
+holiday <-rep(c(0,0,0,0,0,1,1),165)
+COPD$holiday <-holiday[1:1149]
+COPD$holiday[which(COPD$date=="2012-09-30"):which(COPD$date=="2012-10-07")]<-c(1,1,1,1,1,1,1,1)
+COPD$holiday[which(COPD$date=="2012-09-29")]<-0
+
+COPD$holiday[which(COPD$date=="2013-01-01"):which(COPD$date=="2013-01-03")]<-c(1,1,1)
+COPD$holiday[which(COPD$date=="2013-01-05"):which(COPD$date=="2013-01-06")]<-c(0,0)
+COPD$holiday[which(COPD$date=="2013-02-09"):which(COPD$date=="2013-02-15")]<-c(1,1,1,1,1,1,1)
+COPD$holiday[which(COPD$date=="2013-02-16"):which(COPD$date=="2013-02-17")]<-c(0,0)
+COPD$holiday[which(COPD$date=="2013-04-04"):which(COPD$date=="2013-04-06")]<-c(1,1,1)
+COPD$holiday[which(COPD$date=="2013-04-07")]<-0
+COPD$holiday[which(COPD$date=="2013-04-29"):which(COPD$date=="2013-05-01")]<-c(1,1,1)
+COPD$holiday[which(COPD$date=="2013-04-27"):which(COPD$date=="2013-04-28")]<-c(0,0)
+COPD$holiday[which(COPD$date=="2013-06-10"):which(COPD$date=="2013-06-12")]<-c(1,1,1)
+COPD$holiday[which(COPD$date=="2013-06-08"):which(COPD$date=="2013-06-09")]<-c(0,0)
+COPD$holiday[which(COPD$date=="2013-09-19"):which(COPD$date=="2013-09-21")]<-c(1,1,1)
+COPD$holiday[which(COPD$date=="2013-09-22")]<-0
+COPD$holiday[which(COPD$date=="2013-10-01"):which(COPD$date=="2013-10-07")]<-c(1,1,1,1,1,1,1)
+COPD$holiday[which(COPD$date=="2013-09-29")]<-0
+COPD$holiday[which(COPD$date=="2013-10-12")]<-0
+
+COPD$holiday[which(COPD$date=="2014-01-01")]<-1
+COPD$holiday[which(COPD$date=="2014-01-31"):which(COPD$date=="2014-02-06")]<-c(1,1,1,1,1,1,1)
+COPD$holiday[which(COPD$date=="2014-01-26")]<-0
+COPD$holiday[which(COPD$date=="2014-02-08")]<-0
+COPD$holiday[which(COPD$date=="2014-04-05")]<-1
+COPD$holiday[which(COPD$date=="2014-04-07")]<-1
+COPD$holiday[which(COPD$date=="2014-05-01"):which(COPD$date=="2014-05-03")]<-c(1,1,1)
+COPD$holiday[which(COPD$date=="2014-05-04")]<-0
+COPD$holiday[which(COPD$date=="2014-06-02")]<-1
+COPD$holiday[which(COPD$date=="2014-09-08")]<-1
+COPD$holiday[which(COPD$date=="2014-10-01"):which(COPD$date=="2014-10-07")]<-c(1,1,1,1,1,1,1)
+COPD$holiday[which(COPD$date=="2014-09-28")]<-0
+COPD$holiday[which(COPD$date=="2014-10-11")]<-0
+
+
+COPD$holiday[which(COPD$date=="2015-01-01"):which(COPD$date=="2015-01-03")]<-c(1,1,1)
+COPD$holiday[which(COPD$date=="2015-01-04")]<-0
+COPD$holiday[which(COPD$date=="2015-02-18"):which(COPD$date=="2015-02-24")]<-c(1,1,1,1,1,1,1)
+COPD$holiday[which(COPD$date=="2015-02-15")]<-0
+COPD$holiday[which(COPD$date=="2015-02-28")]<-0
+COPD$holiday[which(COPD$date=="2015-04-05"):which(COPD$date=="2015-04-06")]<-c(1,1)
+COPD$holiday[which(COPD$date=="2015-05-01")]<-1
+COPD$holiday[which(COPD$date=="2015-06-20"):which(COPD$date=="2015-06-22")]<-c(1,1,1)
+COPD$holiday[which(COPD$date=="2015-09-27")]<-1
+COPD$holiday[which(COPD$date=="2015-10-01"):which(COPD$date=="2015-10-07")]<-c(1,1,1,1,1,1,1)
+COPD$holiday[which(COPD$date=="2015-10-10")]<-0
+```
+
+
+\paragraph{3.Create Influenza Percentage}
+```{r, cache=TRUE, echo=FALSE}
+#Detect peaks in influenza data
+total2012 <- sum(flu[which(flu$date=="01/01/2012"):which(flu$date=="31/12/2012"),2])
+total2013 <- sum(flu[which(flu$date=="01/01/2013"):which(flu$date=="31/12/2013"),2])
+total2014 <- sum(flu[which(flu$date=="01/01/2014"):which(flu$date=="31/12/2014"),2])
+total2015 <- sum(flu[which(flu$date=="01/01/2015"):which(flu$date=="31/12/2015"),2])
+
+flu$percent=rep(NA,length(flu[,2]))
+for (i in 2810:which(flu$date=="31/12/2012")){
+  flu$percent[i] <- flu$count[i]*100/total2012}
+for (i in which(flu$date=="01/01/2013"):which(flu$date=="31/12/2013")){
+  flu$percent[i] <- flu$count[i]*100/total2013}
+for (i in which(flu$date=="01/01/2014"):which(flu$date=="31/12/2014")){
+  flu$percent[i] <- flu$count[i]*100/total2014}
+for (i in which(flu$date=="01/01/2015"):which(flu$date=="31/12/2015")){
+  flu$percent[i] <- flu$count[i]*100/total2015}
+par(mfrow=c(1,2))
+plot(flu$count[2810:3958],type="l", ylab="actual influenza obs")
+plot(flu$percent[2810:3958],type="l", ylab="percentage of influenza obs")
+
+flu <- flu$percent[2810:3958]
+```
+
+
+\paragraph{4.Define Variables}
+```{r,cache=TRUE,echo=FALSE}
+y <- COPD$total
+
+time <-seq(1:1149)
+date <-COPD$date
+DOW <-COPD$DOW
+holiday <-COPD$holiday
+
+meanT<-meter$meanT/10
+meanT_13<-meter$meanT_1.3/10
+maxT<-meter$maxT/10
+RH<-meter$RH
+maxSP<-meter$maxSP
+maxSPDir<-meter$maxSPDir
+
+SO2<-air$SO2
+NO2<-air$NO2/10
+CO<-air$CO/10
+PM25<-air$PM25/10
+PM10<-air$PM10/10
+
+
+```
+
+
+\section{B. Model Fitting}
+```{r, cache=TRUE, echo=FALSE}
+library(splines)
+library(mgcv)
+library(dlnm)
+library(tseries)
+
+##auto-correlation c
+par(mfrow=c(2,3))
+mean(acf(PM25)$acf[2:6]); mean(acf(PM10)$acf[2:6]);mean(acf(SO2)$acf[2:6]);mean(acf(NO2)$acf[2:6]);mean(acf(CO)$acf[2:6]);mean(acf(O3)$acf[2:6])
+
+### Core
+core.fit <-gam (y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6), family = poisson(link="log"))
+
+
+```
+
+\subsection{CO}
+```{r, cache=TRUE, echo=FALSE}
+fit.glm <-glm (y ~ ns(time,df=22) + ns(meanT,df=6)+ ns(RH,df=7) + DOW + holiday + ns(flu, df=6)+ CO, family = poisson(link="log"))
+
+summary(fit.glm)
+confint(fit.glm,"CO",level=0.95)
+
+
+fit.gam <-gam (y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6)+ CO, family = poisson(link="log"))
+
+summary(fit.gam)
+c(summary(fit.gam)$p.coef[4]-1.96*summary(fit.gam)$se[4],summary(fit.gam)$p.coef[4]+1.96*summary(fit.gam)$se[4])
+
+gam.check(fit.gam, old.style=FALSE, type="pearson", k.sample=5000,k.rep=200,rep=0, level=.9, rl.col=2, rep.col="gray80")
+
+
+###Cross Basis
+CO.basis<-crossbasis(CO,lag=10, argvar=list(fun="lin"), arglag=list(fun="poly", degree=3))
+
+fit1<-gam(y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6) + CO.basis, family = poisson(link="log"))
+summary(fit1)
+
+pred<-crosspred(CO.basis, fit1, at=1, bylag=1, cumul=TRUE)
+pred$matfit
+pred$matse
+log(c(pred$matRRlow[1],pred$matRRhigh[1]))
+
+par(mfrow=c(1,2))
+plot(pred, "slices", var=1, col=3, ylab="RR", ci.arg=list(density=15,lwd=2), main="Association with a 10-unit increase in CO")
+
+plot(pred, "slices", var=1, col=2, cumul=TRUE, ylab="Cumulative RR",main="Cumulative association with a 10-unit increase in CO")
+
+
+CO.basis<-crossbasis(CO,lag=15, argvar=list(fun="lin"), arglag=list(fun="poly", degree=3))
+
+fit2<-gam(y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6) + CO.basis, family = poisson(link="log"))
+
+pred2<-crosspred(CO.basis, fit2, at=1, bylag=1, cumul=TRUE)
+pred2$matfit
+pred2$matse
+log(c(pred2$matRRlow[1],pred2$matRRhigh[1]))
+plot(pred2, "slices", var=1, col=3, ylab="RR", ci.arg=list(density=15,lwd=2), main="Association with a 10-unit increase in CO")
+
+plot(pred, "slices", var=1, col=2, cumul=TRUE, ylab="Cumulative RR",main="Cumulative association with a 10-unit increase in CO")
+
+
+CO.res<-c(fit.glm$coefficients[45], fit.gam$coefficients[4],pred$matfit[1], pred2$matfit[1])
+CO.low<-c(confint(fit.glm,"CO",level=0.95)[1],summary(fit.gam)$p.coef[4]-1.96*summary(fit.gam)$se[4],log(pred$matRRlow[1]),log(pred2$matRRlow[1]))
+CO.upp<-c(confint(fit.glm,"CO",level=0.95)[2],summary(fit.gam)$p.coef[4]+1.96*summary(fit.gam)$se[4],log(pred$matRRhigh[1]),log(pred2$matRRhigh[1]))
+
+
+```
+
+
+
+\subsection{SO2}
+```{r, cache=TRUE, echo=FALSE}
+fit.glm <-glm (y ~ ns(time,df=22) + ns(meanT,df=6)+ ns(RH,df=7) + DOW + holiday + ns(flu, df=6)+ SO2, family = poisson(link="log"))
+
+summary(fit.glm)
+confint(fit.glm,"SO2",level=0.95)
+
+fit.gam <-gam (y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6)+ SO2, family = poisson(link="log"))
+
+summary(fit.gam)
+c(summary(fit.gam)$p.coef[4]-1.96*summary(fit.gam)$se[4],summary(fit.gam)$p.coef[4]+1.96*summary(fit.gam)$se[4])
+
+gam.check(fit.gam, old.style=FALSE, type="pearson", k.sample=5000,k.rep=200,rep=0, level=.9, rl.col=2, rep.col="gray80")
+
+
+###Cross Basis
+SO2.basis<-crossbasis(SO2,lag=10, argvar=list(fun="lin"), arglag=list(fun="poly", degree=3))
+
+fit1<-gam(y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6) + SO2.basis, family = poisson(link="log"))
+summary(fit1)
+
+pred<-crosspred(SO2.basis, fit1, at=1, bylag=1, cumul=TRUE)
+pred$matfit
+pred$matse
+log(c(pred$matRRlow[1],pred$matRRhigh[1]))
+
+par(mfrow=c(1,2))
+plot(pred, "slices", var=1, col=3, ylab="RR", ci.arg=list(density=15,lwd=2), main="Association with a 10-unit increase in SO2")
+
+plot(pred, "slices", var=1, col=2, cumul=TRUE, ylab="Cumulative RR",main="Cumulative association with a 10-unit increase in SO2")
+
+
+SO2.basis<-crossbasis(SO2,lag=15, argvar=list(fun="lin"), arglag=list(fun="poly", degree=3))
+
+fit2<-gam(y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6) + SO2.basis, family = poisson(link="log"))
+
+pred2<-crosspred(SO2.basis, fit2, at=1, bylag=1, cumul=TRUE)
+pred2$matfit
+pred2$matse
+log(c(pred2$matRRlow[1],pred2$matRRhigh[1]))
+plot(pred2, "slices", var=1, col=3, ylab="RR", ci.arg=list(density=15,lwd=2), main="Association with a 10-unit increase in SO2")
+
+plot(pred2, "slices", var=1, col=2, cumul=TRUE, ylab="Cumulative RR",main="Cumulative association with a 10-unit increase in SO2")
+
+SO2.res<-c(fit.glm$coefficients[45], fit.gam$coefficients[4],pred$matfit[1], pred2$matfit[1])
+SO2.low<-c(confint(fit.glm,"SO2",level=0.95)[1],summary(fit.gam)$p.coef[4]-1.96*summary(fit.gam)$se[4],log(pred$matRRlow[1]),log(pred2$matRRlow[1]))
+SO2.upp<-c(confint(fit.glm,"SO2",level=0.95)[2],summary(fit.gam)$p.coef[4]+1.96*summary(fit.gam)$se[4],log(pred$matRRhigh[1]),log(pred2$matRRhigh[1]))
+
+```
+
+
+
+\subsection{NO2}
+```{r, cache=TRUE, echo=FALSE}
+fit.glm <-glm (y ~ ns(time,df=22) + ns(meanT,df=6)+ ns(RH,df=7) + DOW + holiday + ns(flu, df=6)+ NO2, family = poisson(link="log"))
+
+summary(fit.glm)
+confint(fit.glm,"NO2",level=0.95)
+
+
+fit.gam <-gam (y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6)+ NO2, family = poisson(link="log"))
+
+summary(fit.gam)
+c(summary(fit.gam)$p.coef[4]-1.96*summary(fit.gam)$se[4],summary(fit.gam)$p.coef[4]+1.96*summary(fit.gam)$se[4])
+
+gam.check(fit.gam, old.style=FALSE, type="pearson", k.sample=5000,k.rep=200,rep=0, level=.9, rl.col=2, rep.col="gray80")
+
+
+###Cross Basis
+NO2.basis<-crossbasis(NO2,lag=10, argvar=list(fun="lin"), arglag=list(fun="poly", degree=3))
+
+fit1<-gam(y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6) + NO2.basis, family = poisson(link="log"))
+summary(fit1)
+
+pred<-crosspred(NO2.basis, fit1, at=1, bylag=1, cumul=TRUE)
+pred$matfit
+pred$matse
+log(c(pred$matRRlow[1],pred$matRRhigh[1]))
+
+par(mfrow=c(1,2))
+plot(pred, "slices", var=1, col=3, ylab="RR", ci.arg=list(density=15,lwd=2), main="Association with a 10-unit increase in NO2")
+
+plot(pred, "slices", var=1, col=2, cumul=TRUE, ylab="Cumulative RR",main="Cumulative association with a 10-unit increase in NO2")
+
+
+NO2.basis<-crossbasis(NO2,lag=15, argvar=list(fun="lin"), arglag=list(fun="poly", degree=3))
+
+fit2<-gam(y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6) + NO2.basis, family = poisson(link="log"))
+
+pred2<-crosspred(NO2.basis, fit2, at=1, bylag=1, cumul=TRUE)
+pred2$matfit
+pred2$matse
+log(c(pred2$matRRlow[1],pred2$matRRhigh[1]))
+plot(pred2, "slices", var=1, col=3, ylab="RR", ci.arg=list(density=15,lwd=2), main="Association with a 10-unit increase in NO2")
+
+plot(pred2, "slices", var=1, col=2, cumul=TRUE, ylab="Cumulative RR",main="Cumulative association with a 10-unit increase in NO2")
+
+NO2.res<-c(fit.glm$coefficients[45], fit.gam$coefficients[4],pred$matfit[1], pred2$matfit[1])
+NO2.low<-c(confint(fit.glm,"NO2",level=0.95)[1],summary(fit.gam)$p.coef[4]-1.96*summary(fit.gam)$se[4],log(pred$matRRlow[1]),log(pred2$matRRlow[1]))
+
+NO2.upp<-c(confint(fit.glm,"NO2",level=0.95)[2],summary(fit.gam)$p.coef[4]+1.96*summary(fit.gam)$se[4],log(pred$matRRhigh[1]),log(pred2$matRRhigh[1]))
+```
+
+\subsection{PM2.5}
+```{r, cache=TRUE, echo=FALSE}
+fit.glm <-glm (y ~ ns(time,df=22) + ns(meanT,df=6)+ ns(RH,df=7) + DOW + holiday + ns(flu, df=6)+ PM25, family = poisson(link="log"))
+
+summary(fit.glm)
+confint(fit.glm,"PM25",level=0.95)
+
+
+fit.gam <-gam (y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6)+ PM25, family = poisson(link="log"))
+
+summary(fit.gam)
+c(summary(fit.gam)$p.coef[4]-1.96*summary(fit.gam)$se[4],summary(fit.gam)$p.coef[4]+1.96*summary(fit.gam)$se[4])
+
+gam.check(fit.gam, old.style=FALSE, type="pearson", k.sample=5000,k.rep=200,rep=0, level=.9, rl.col=2, rep.col="gray80")
+
+
+###Cross Basis
+PM25.basis<-crossbasis(PM25,lag=10, argvar=list(fun="lin"), arglag=list(fun="poly", degree=3))
+
+fit1<-gam(y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6) + PM25.basis, family = poisson(link="log"))
+summary(fit1)
+
+pred<-crosspred(PM25.basis, fit1, at=1, bylag=1, cumul=TRUE)
+pred$matfit
+pred$matse
+log(c(pred$matRRlow[1],pred$matRRhigh[1]))
+
+par(mfrow=c(1,2))
+plot(pred, "slices", var=1, col=3, ylab="RR", ci.arg=list(density=15,lwd=2), main="Association with a 10-unit increase in PM25")
+
+plot(pred, "slices", var=1, col=2, cumul=TRUE, ylab="Cumulative RR",main="Cumulative association with a 10-unit increase in PM25")
+
+
+PM25.basis<-crossbasis(PM25,lag=15, argvar=list(fun="lin"), arglag=list(fun="poly", degree=3))
+
+fit2<-gam(y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6) + PM25.basis, family = poisson(link="log"))
+
+pred2<-crosspred(PM25.basis, fit2, at=1, bylag=1, cumul=TRUE)
+pred2$matfit
+pred2$matse
+log(c(pred2$matRRlow[1],pred2$matRRhigh[1]))
+plot(pred2, "slices", var=1, col=3, ylab="RR", ci.arg=list(density=15,lwd=2), main="Association with a 10-unit increase in PM25")
+
+plot(pred2, "slices", var=1, col=2, cumul=TRUE, ylab="Cumulative RR",main="Cumulative association with a 10-unit increase in PM25")
+
+
+PM25.res<-c(fit.glm$coefficients[45], fit.gam$coefficients[4],pred$matfit[1], pred2$matfit[1])
+PM25.low<-c(confint(fit.glm,"PM25",level=0.95)[1],summary(fit.gam)$p.coef[4]-1.96*summary(fit.gam)$se[4],log(pred$matRRlow[1]),log(pred2$matRRlow[1]))
+PM25.upp<-c(confint(fit.glm,"PM25",level=0.95)[2],summary(fit.gam)$p.coef[4]+1.96*summary(fit.gam)$se[4],log(pred$matRRhigh[1]),log(pred2$matRRhigh[1]))
+
+
+
+```
+
+\subsection{PM10}
+```{r, cache=TRUE, echo=FALSE}
+fit.glm <-glm (y ~ ns(time,df=22) + ns(meanT,df=6)+ ns(RH,df=7) + DOW + holiday + ns(flu, df=6)+ PM10, family = poisson(link="log"))
+
+summary(fit.glm)
+confint(fit.glm,"PM10",level=0.95)
+
+
+fit.gam <-gam (y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6)+ PM10, family = poisson(link="log"))
+
+summary(fit.gam)
+c(summary(fit.gam)$p.coef[4]-1.96*summary(fit.gam)$se[4],summary(fit.gam)$p.coef[4]+1.96*summary(fit.gam)$se[4])
+
+gam.check(fit.gam, old.style=FALSE, type="pearson", k.sample=5000,k.rep=200,rep=0, level=.9, rl.col=2, rep.col="gray80")
+
+
+###Cross Basis
+PM10.basis<-crossbasis(PM10,lag=10, argvar=list(fun="lin"), arglag=list(fun="poly", degree=3))
+
+fit1<-gam(y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6) + PM10.basis, family = poisson(link="log"))
+summary(fit1)
+
+pred<-crosspred(PM10.basis, fit1, at=1, bylag=1, cumul=TRUE)
+pred$matfit
+pred$matse
+log(c(pred$matRRlow[1],pred$matRRhigh[1]))
+
+par(mfrow=c(1,2))
+plot(pred, "slices", var=1, col=3, ylab="RR", ci.arg=list(density=15,lwd=2), main="Association with a 10-unit increase in PM10")
+
+plot(pred, "slices", var=1, col=2, cumul=TRUE, ylab="Cumulative RR",main="Cumulative association with a 10-unit increase in PM10")
+
+
+PM10.basis<-crossbasis(PM10,lag=15, argvar=list(fun="lin"), arglag=list(fun="poly", degree=3))
+
+fit2<-gam(y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6) + PM10.basis, family = poisson(link="log"))
+
+pred2<-crosspred(PM10.basis, fit2, at=1, bylag=1, cumul=TRUE)
+pred2$matfit
+pred2$matse
+log(c(pred2$matRRlow[1],pred2$matRRhigh[1]))
+plot(pred2, "slices", var=1, col=3, ylab="RR", ci.arg=list(density=15,lwd=2), main="Association with a 10-unit increase in PM10")
+plot(pred2, "slices", var=1, col=2, cumul=TRUE, ylab="Cumulative RR",main="Cumulative association with a 10-unit increase in PM10")
+
+PM10.res<-c(fit.glm$coefficients[45], fit.gam$coefficients[4],pred$matfit[1], pred2$matfit[1])
+PM10.low<-c(confint(fit.glm,"PM10",level=0.95)[1],summary(fit.gam)$p.coef[4]-1.96*summary(fit.gam)$se[4],log(pred$matRRlow[1]),log(pred2$matRRlow[1]))
+PM10.upp<-c(confint(fit.glm,"PM10",level=0.95)[2],summary(fit.gam)$p.coef[4]+1.96*summary(fit.gam)$se[4],log(pred$matRRhigh[1]),log(pred2$matRRhigh[1]))
+```
+
+
+
+\subsection{O3}
+```{r, cache=TRUE, echo=FALSE}
+fit.glm <-glm (y ~ ns(time,df=22) + ns(meanT,df=6)+ ns(RH,df=7) + DOW + holiday + ns(flu, df=6)+ O3, family = poisson(link="log"))
+
+summary(fit.glm)
+confint(fit.glm,"O3",level=0.95)
+
+
+fit.gam <-gam (y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6)+ O3, family = poisson(link="log"))
+
+summary(fit.gam)
+c(summary(fit.gam)$p.coef[4]-1.96*summary(fit.gam)$se[4],summary(fit.gam)$p.coef[4]+1.96*summary(fit.gam)$se[4])
+
+gam.check(fit.gam, old.style=FALSE, type="pearson", k.sample=5000,k.rep=200,rep=0, level=.9, rl.col=2, rep.col="gray80")
+
+
+###Cross Basis
+O3.basis<-crossbasis(O3,lag=10, argvar=list(fun="lin"), arglag=list(fun="poly", degree=3))
+
+fit1<-gam(y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6) + O3.basis, family = poisson(link="log"))
+summary(fit1)
+
+pred<-crosspred(O3.basis, fit1, at=1, bylag=1, cumul=TRUE)
+pred$matfit
+pred$matse
+log(c(pred$matRRlow[1],pred$matRRhigh[1]))
+
+par(mfrow=c(1,2))
+plot(pred, "slices", var=1, col=3, ylab="RR", ci.arg=list(density=15,lwd=2), main="Association with a 10-unit increase in O3")
+
+plot(pred, "slices", var=1, col=2, cumul=TRUE, ylab="Cumulative RR",main="Cumulative association with a 10-unit increase in O3")
+
+
+O3.basis<-crossbasis(O3,lag=15, argvar=list(fun="lin"), arglag=list(fun="poly", degree=3))
+
+fit2<-gam(y ~ s(time,k=22) + s(meanT,k=6) + s(RH,k=7) + DOW + holiday + s(flu, k=6) + O3.basis, family = poisson(link="log"))
+
+pred2<-crosspred(O3.basis, fit1, at=1, bylag=1, cumul=TRUE)
+pred2$matfit
+pred2$matse
+log(c(pred2$matRRlow[1],pred2$matRRhigh[1]))
+plot(pred2, "slices", var=1, col=3, ylab="RR", ci.arg=list(density=15,lwd=2), main="Association with a 10-unit increase in O3")
+
+plot(pred2, "slices", var=1, col=2, cumul=TRUE, ylab="Cumulative RR",main="Cumulative association with a 10-unit increase in O3")
+
+O3.res<-c(fit.glm$coefficients[45], fit.gam$coefficients[4],pred$matfit[1], pred2$matfit[1])
+O3.low<-c(confint(fit.glm,"O3",level=0.95)[1],summary(fit.gam)$p.coef[4]-1.96*summary(fit.gam)$se[4],log(pred$matRRlow[1]),log(pred2$matRRlow[1]))
+O3.upp<-c(confint(fit.glm,"O3",level=0.95)[2],summary(fit.gam)$p.coef[4]+1.96*summary(fit.gam)$se[4],log(pred$matRRhigh[1]),log(pred2$matRRhigh[1]))
+```
+
+
+
+\section{Summary}
+```{r, cache=TRUE, echo=FALSE}
+library(plotrix)
+library(ggplot2)
+
+x<-seq(1,4,by=1)
+par(mfrow=c(3,2))
+plotCI(x, CO.res, ui=CO.upp, li=CO.low, ylab="log(RR) of current day CO", ylim=c(0,2.5),xlab="  glm     gam     dlnm(10)   dlnm(15)")
+abline(0,0,col="red")
+plotCI(x, SO2.res, ui=SO2.upp, li=SO2.low, ylab="log(RR) of current day SO2",xlab="  glm     gam     dlnm(10)   dlnm(15)")
+abline(0,0,col="red")
+plotCI(x, NO2.res, ui=NO2.upp, li=NO2.low, ylab="log(RR) of current day NO2",xlab="  glm     gam     dlnm(10)   dlnm(15)")
+abline(0,0,col="red")
+plotCI(x, PM25.res, ui=PM25.upp, li=PM25.low,ylab="log(RR) of current day PM2.5",xlab="  glm    gam     dlnm(10)   dlnm(15)")
+abline(0,0,col="red")
+plotCI(x, PM10.res, ui=PM10.upp, li=PM10.low,ylab="log(RR) of current day PM10",xlab="glm   gam   dlnm(10)   dlnm(15)")
+abline(0,0,col="red")
+plotCI(x, O3.res, ui=O3.upp, li=O3.low,ylab="log(RR) of current day O3",xlab="  glm     gam     dlnm(10)   dlnm(15)")
+abline(0,0,col="red")
+
+CO.res
+```
+
+
+
